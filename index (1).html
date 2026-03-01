@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CDMP Fundamentals Coaching Platform</title>
+  <meta name="description" content="Interactive CDMP Fundamentals exam preparation platform with practice quizzes, study guides, and progress tracking based on DAMA-DMBOK2.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'DM Sans', 'Segoe UI', sans-serif; background: #0B0E14; color: #E2E8F0; }
+    button { font-family: inherit; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0B0E14; }
+    ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    @media (max-width: 768px) {
+      .sidebar-container { display: none !important; }
+      .main-content { margin-left: 0 !important; padding: 16px !important; }
+    }
+  </style>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+const { useState, useEffect, useCallback, useMemo } = React;
+// ─── CDMP Data ─────────────────────────────────────────────
+const TOPICS = [
+    { id: "gov", name: "Data Governance", weight: 11, icon: "🏛️", color: "#E8B931" },
+    { id: "qual", name: "Data Quality", weight: 11, icon: "✨", color: "#4ECDC4" },
+    { id: "model", name: "Data Modeling & Design", weight: 11, icon: "📐", color: "#FF6B6B" },
+    { id: "meta", name: "Metadata Management", weight: 11, icon: "🏷️", color: "#A78BFA" },
+    { id: "mref", name: "Master & Reference Data", weight: 10, icon: "📋", color: "#F97316" },
+    { id: "dwbi", name: "Data Warehousing & BI", weight: 10, icon: "📊", color: "#06B6D4" },
+    { id: "arch", name: "Data Architecture", weight: 6, icon: "🏗️", color: "#10B981" },
+    { id: "intg", name: "Data Integration", weight: 6, icon: "🔗", color: "#EC4899" },
+    { id: "sec", name: "Data Security", weight: 6, icon: "🔒", color: "#EF4444" },
+    { id: "stor", name: "Data Storage & Operations", weight: 6, icon: "💾", color: "#8B5CF6" },
+    { id: "doc", name: "Document & Content Mgmt", weight: 6, icon: "📄", color: "#14B8A6" },
+    { id: "proc", name: "Data Mgmt Process", weight: 2, icon: "⚙️", color: "#6366F1" },
+    { id: "eth", name: "Data Ethics", weight: 2, icon: "⚖️", color: "#D946EF" },
+    { id: "big", name: "Big Data", weight: 2, icon: "🌐", color: "#0EA5E9" },
+];
+const QUESTION_BANK = [
+    // Data Governance (11%) — DMBOK2 Chapter 3 grounded
+    { id: 1, topic: "gov", question: "According to DAMA-DMBOK2, Data Governance is BEST defined as:", options: ["The technical management of databases and servers", "The exercise of authority and control over the management of data assets", "The process of building data warehouses", "A project to improve data quality scores", "The IT department's responsibility for data backups"], correct: 1, explanation: "DMBOK2 defines Data Governance as 'the exercise of authority and control (planning, implementation, monitoring, and enforcement) over the management of data assets.' It is about oversight, not execution." },
+    { id: 2, topic: "gov", question: "What is the KEY distinction between Data Governance and Data Management per the DMBOK2?", options: ["They are the same function with different names", "DG is technical; DM is business-focused", "DG provides oversight; DM executes operations", "DG only applies to sensitive data; DM applies to all data", "DG replaces DM in modern organizations"], correct: 2, explanation: "The DMBOK2 emphasizes an inherent separation of duty: Data Governance ensures data is properly managed (oversight), while Data Management actually manages data to achieve goals (execution). Like an auditor vs. an accountant." },
+    { id: 3, topic: "gov", question: "Which body is the HIGHEST authority in the Data Governance organization, responsible for oversight, support, and funding?", options: ["Data Governance Office (DGO)", "Data Stewardship Teams", "Data Governance Council (DGC)", "Data Governance Steering Committee", "Chief Data Officer alone"], correct: 3, explanation: "The Data Governance Steering Committee is the primary and highest authority, consisting of a cross-functional group of senior executives responsible for oversight, support, and funding of DG activities." },
+    { id: 4, topic: "gov", question: "In a FEDERATED Data Governance operating model, which statement is TRUE?", options: ["One DG org oversees all activities in all subject areas", "The same DG model is independently adopted by each business unit", "One DG org coordinates with multiple BUs for consistent definitions and standards", "Each department creates governance policies without coordination", "No formal governance structure exists"], correct: 2, explanation: "In a federated model, one Data Governance organization coordinates with multiple Business Units to maintain consistent definitions and standards. Centralized = one org oversees all. Replicated = same model independently adopted." },
+    { id: 36, topic: "gov", question: "A Business Data Steward is BEST described as:", options: ["An IT professional managing database infrastructure", "A business professional / SME accountable for a subset of data who works with stakeholders to define and control data", "An external consultant hired for governance projects", "A software developer writing data access code", "A project manager overseeing IT implementations"], correct: 1, explanation: "Business Data Stewards are business professionals, most often recognized subject matter experts, accountable for a subset of data. They work with stakeholders to define and control data. This is distinct from Technical Data Stewards who are IT professionals." },
+    { id: 37, topic: "gov", question: "The DMBOK2 maps Data Governance to political governance. Which mapping is CORRECT?", options: ["Legislative = Issue management; Judicial = Defining policies", "Legislative = Defining policies, standards, and Enterprise Data Architecture; Judicial = Issue management and escalation; Executive = Administrative duties", "Legislative = Database management; Judicial = Security auditing", "All three branches perform the same functions", "The political analogy only applies to government organizations"], correct: 1, explanation: "The DMBOK2 explicitly maps DG functions: Legislative (policies, standards, Enterprise Data Architecture), Judicial (issue management and escalation), and Executive (protecting and serving, administrative responsibilities)." },
+    { id: 38, topic: "gov", question: "According to the DMBOK2, what is the MOST common driver for establishing a Data Governance function?", options: ["Reducing IT infrastructure costs", "Implementing new database technologies", "Regulatory compliance", "Hiring more data scientists", "Building a data warehouse"], correct: 2, explanation: "The DMBOK2 states the most common driver for Data Governance is regulatory compliance, especially for heavily regulated industries such as financial services and healthcare." },
+    { id: 39, topic: "gov", question: "What is a Data Owner according to the DMBOK2?", options: ["The IT administrator who manages the database", "A business person accountable for decisions about data within their domain", "The DBA responsible for backup and recovery", "The vendor who provides data to the organization", "The software developer who creates data entry forms"], correct: 1, explanation: "A Data Owner is a business person who is accountable for decisions about data within their domain. This is a BUSINESS role, not a technical one." },
+    { id: 40, topic: "gov", question: "A Business Glossary differs from a Data Dictionary in that a Business Glossary:", options: ["Contains database table structures and column definitions", "Provides shared business terms and definitions managed by data stewards", "Is only used by IT staff", "Documents ETL transformation rules", "Lists server hardware specifications"], correct: 1, explanation: "A Business Glossary is a collection of business terms and definitions providing shared organizational vocabulary, managed by Data Stewards. A Data Dictionary defines technical data structures (tables, columns, data types)." },
+    { id: 41, topic: "gov", question: "The DMBOK2 states Data Governance should be 'sustainable.' This means:", options: ["It uses environmentally friendly technology", "It is a project with a defined start and end date", "It is NOT a project with a defined end; it is an ongoing continuous function", "It should be funded only during the first year", "It only operates during regulatory audits"], correct: 2, explanation: "The DMBOK2 states that the DG function needs to be 'sticky' — Data Governance is not a project with a defined end; it is an ongoing program focused on ensuring an organization gets value from its data." },
+    { id: 42, topic: "gov", question: "Which DG principle states that Data Governance occurs at both the enterprise and local levels?", options: ["Shared responsibility", "Multi-layered", "Framework-based", "Principle-based", "Business-driven"], correct: 1, explanation: "The Multi-layered principle states that Data Governance occurs at both the enterprise and local levels and often at levels in between." },
+    { id: 43, topic: "gov", question: "What is the relationship between Data Governance and IT Governance per the DMBOK2?", options: ["They are the same function", "IT Governance is a subset of Data Governance", "Data Governance is a subset of IT Governance", "They are separate functions; IT Governance focuses on IT investments while DG focuses on data assets", "Data Governance replaces IT Governance"], correct: 3, explanation: "The DMBOK2 states they are separate: IT Governance makes decisions about IT investments, application portfolio, and technical architecture. Data Governance focuses exclusively on managing data assets." },
+    // Data Quality (11%)
+    { id: 5, topic: "qual", question: "Which of these is NOT a commonly recognized dimension of Data Quality?", options: ["Accuracy", "Completeness", "Profitability", "Timeliness", "Consistency"], correct: 2, explanation: "Profitability is a business metric, not a data quality dimension. Core DQ dimensions include accuracy, completeness, consistency, timeliness, validity, and uniqueness." },
+    { id: 6, topic: "qual", question: "What is the purpose of Data Profiling?", options: ["Encrypting sensitive data", "Analyzing data to understand its structure, content, and quality", "Creating backup copies of databases", "Designing data models", "Migrating data to the cloud"], correct: 1, explanation: "Data Profiling is the process of examining data to collect statistics and information about its structure, content, quality, and relationships." },
+    { id: 7, topic: "qual", question: "A Data Quality rule that checks if all customer records have a valid email format is an example of:", options: ["Referential integrity", "Validity checking", "Completeness analysis", "Timeliness monitoring", "Uniqueness verification"], correct: 1, explanation: "Validity checking ensures data conforms to defined formats, ranges, or business rules — such as verifying email addresses follow the expected pattern." },
+    { id: 8, topic: "qual", question: "The 'root cause analysis' technique in Data Quality Management is used to:", options: ["Find the fastest query execution path", "Identify the underlying reasons for data quality issues", "Determine data storage requirements", "Plan database backups", "Design ETL workflows"], correct: 1, explanation: "Root cause analysis aims to identify the fundamental reasons why data quality issues occur, enabling organizations to fix problems at their source rather than just treating symptoms." },
+    // Data Modeling & Design (11%)
+    { id: 9, topic: "model", question: "Which data model type represents data in terms of business concepts, independent of technology?", options: ["Physical data model", "Logical data model", "Conceptual data model", "Dimensional model", "Relational model"], correct: 2, explanation: "A Conceptual Data Model represents high-level business concepts and relationships, independent of any technology or implementation details." },
+    { id: 10, topic: "model", question: "In Entity-Relationship modeling, a many-to-many relationship between two entities typically requires:", options: ["A foreign key in one table", "An associative (junction) entity", "Denormalization", "A stored procedure", "A trigger"], correct: 1, explanation: "Many-to-many relationships are resolved by creating an associative (junction/bridge) entity that holds the foreign keys of both related entities." },
+    { id: 11, topic: "model", question: "Third Normal Form (3NF) eliminates:", options: ["All data redundancy", "Transitive dependencies", "Multi-valued dependencies", "Join dependencies", "All null values"], correct: 1, explanation: "Third Normal Form (3NF) removes transitive dependencies — where a non-key attribute depends on another non-key attribute rather than directly on the primary key." },
+    { id: 12, topic: "model", question: "A star schema in dimensional modeling consists of:", options: ["Only fact tables", "Only dimension tables", "A central fact table surrounded by dimension tables", "Normalized lookup tables", "Hierarchical parent-child tables"], correct: 2, explanation: "A star schema features a central fact table (containing measurable data) surrounded by denormalized dimension tables that provide descriptive context." },
+    // Metadata Management (11%)
+    { id: 13, topic: "meta", question: "Which type of metadata describes the structure and format of data (e.g., column names, data types)?", options: ["Business metadata", "Technical metadata", "Operational metadata", "Process metadata", "Administrative metadata"], correct: 1, explanation: "Technical metadata describes the structure and format of data assets, including table definitions, column names, data types, and relationships." },
+    { id: 14, topic: "meta", question: "A data catalog primarily serves which purpose?", options: ["Real-time data processing", "Enabling users to discover, understand, and trust available data assets", "Encrypting data at rest", "Automating ETL processes", "Managing database indexes"], correct: 1, explanation: "A data catalog is an inventory that enables data consumers to discover, understand, and trust the data assets available across the organization." },
+    { id: 15, topic: "meta", question: "Data lineage is BEST described as:", options: ["The physical location of data storage", "The history and lifecycle of data as it moves through systems", "The access control list for data assets", "The schema version history", "The backup schedule for databases"], correct: 1, explanation: "Data lineage tracks the origin, movement, transformation, and destination of data throughout its lifecycle across various systems and processes." },
+    // Master & Reference Data (10%)
+    { id: 16, topic: "mref", question: "Master Data Management (MDM) primarily aims to:", options: ["Increase database query speed", "Create a single, authoritative source of key business entities", "Automate report generation", "Reduce data storage costs", "Manage unstructured documents"], correct: 1, explanation: "MDM focuses on creating and maintaining a single, consistent, authoritative source of truth for key business entities like customers, products, and locations." },
+    { id: 17, topic: "mref", question: "Reference data is BEST defined as:", options: ["Data used exclusively for testing", "Data used to classify or categorize other data", "Encrypted backup data", "Transactional log data", "Archived historical data"], correct: 1, explanation: "Reference data consists of codes, lookup values, and classifications used to categorize and relate other data — examples include country codes, currency codes, and status values." },
+    { id: 18, topic: "mref", question: "A 'golden record' in MDM refers to:", options: ["The first record created in a database", "The single best version of an entity created by merging data from multiple sources", "A record protected by encryption", "A record flagged for deletion", "The most recently updated record"], correct: 1, explanation: "A golden record is the single, most accurate, and complete version of a master data entity, created by reconciling and merging data from multiple source systems." },
+    // Data Warehousing & BI (10%)
+    { id: 19, topic: "dwbi", question: "The ETL process stands for:", options: ["Evaluate, Test, Launch", "Extract, Transform, Load", "Enable, Track, Log", "Encrypt, Transfer, Link", "Edit, Transfer, Load"], correct: 1, explanation: "ETL (Extract, Transform, Load) is the process of extracting data from source systems, transforming it to fit operational and analytical needs, and loading it into a target data warehouse." },
+    { id: 20, topic: "dwbi", question: "A slowly changing dimension (SCD) Type 2 handles changes by:", options: ["Overwriting the old value", "Adding a new row with effective dates to preserve history", "Ignoring all changes", "Creating a separate change log table", "Flagging records for manual review"], correct: 1, explanation: "SCD Type 2 preserves historical data by creating a new row each time a dimension attribute changes, using effective date ranges or version flags to track history." },
+    { id: 21, topic: "dwbi", question: "An OLAP cube enables:", options: ["Real-time transaction processing", "Multidimensional analysis of data across different perspectives", "Automated backup and recovery", "Source code version control", "Network security monitoring"], correct: 1, explanation: "OLAP (Online Analytical Processing) cubes allow users to analyze data across multiple dimensions (e.g., time, geography, product) for complex business intelligence queries." },
+    // Data Architecture (6%)
+    { id: 22, topic: "arch", question: "Enterprise Data Architecture PRIMARILY provides:", options: ["Detailed database tuning parameters", "A blueprint for managing data assets aligned with business strategy", "Firewall configurations", "Application source code standards", "Server hardware specifications"], correct: 1, explanation: "Enterprise Data Architecture provides a master blueprint that defines how data assets are structured, integrated, and managed in alignment with the organization's business strategy." },
+    { id: 23, topic: "arch", question: "A data lake differs from a data warehouse primarily because:", options: ["It only stores structured data", "It stores raw data in its native format without predefined schema", "It is always on-premise", "It cannot support analytics", "It requires more rigid governance"], correct: 1, explanation: "A data lake stores raw data in its native format (structured, semi-structured, unstructured) using a schema-on-read approach, unlike a data warehouse which requires predefined schemas." },
+    // Data Integration (6%)
+    { id: 24, topic: "intg", question: "Data virtualization differs from physical data integration because it:", options: ["Requires all data to be moved to a central repository", "Provides a unified view of data without physically moving it", "Only works with relational databases", "Is slower than batch processing", "Requires manual data entry"], correct: 1, explanation: "Data virtualization creates a logical, unified view across multiple data sources without physically moving or replicating the data, providing real-time access to distributed data." },
+    { id: 25, topic: "intg", question: "An API-based integration approach is BEST suited for:", options: ["Batch processing of historical data", "Real-time or near-real-time data exchange between systems", "Archiving old records", "Manual data correction", "Creating physical backups"], correct: 1, explanation: "API-based integration enables real-time or near-real-time data exchange between systems through well-defined interfaces, supporting modern application integration patterns." },
+    // Data Security (6%)
+    { id: 26, topic: "sec", question: "Data masking is a technique used to:", options: ["Speed up query processing", "Replace sensitive data with realistic but fake values", "Compress data for storage", "Index data for search", "Encrypt network traffic"], correct: 1, explanation: "Data masking replaces sensitive data with realistic but fictitious values, allowing data to be used for testing, development, or analytics without exposing actual sensitive information." },
+    { id: 27, topic: "sec", question: "The principle of 'least privilege' in data security means:", options: ["Everyone gets full admin access", "Users are given only the minimum access necessary to perform their role", "Data is encrypted with the weakest algorithm", "Security audits are done as rarely as possible", "All data is made publicly available"], correct: 1, explanation: "The principle of least privilege ensures users and systems are granted only the minimum level of access needed to perform their functions, reducing risk of unauthorized data exposure." },
+    // Data Storage & Operations (6%)
+    { id: 28, topic: "stor", question: "Database normalization primarily aims to:", options: ["Increase query speed", "Reduce data redundancy and improve data integrity", "Maximize storage utilization", "Simplify user interfaces", "Automate data entry"], correct: 1, explanation: "Normalization organizes data to reduce redundancy and dependency, improving data integrity by ensuring each fact is stored in only one place." },
+    { id: 29, topic: "stor", question: "A database transaction must satisfy ACID properties. The 'I' stands for:", options: ["Integration", "Isolation", "Indexing", "Implementation", "Identification"], correct: 1, explanation: "ACID stands for Atomicity, Consistency, Isolation, Durability. Isolation ensures that concurrent transactions do not interfere with each other." },
+    // Document & Content Management (6%)
+    { id: 30, topic: "doc", question: "A records retention schedule defines:", options: ["How often to back up databases", "How long different types of records must be kept and when they can be destroyed", "The order in which documents are created", "Who can view documents", "The format of document templates"], correct: 1, explanation: "A records retention schedule specifies how long each category of records must be maintained for legal, regulatory, or business purposes, and when they can be disposed of." },
+    { id: 31, topic: "doc", question: "Content Management differs from Records Management primarily in that content management focuses on:", options: ["Long-term archival storage", "The creation, management, and delivery of digital content through its lifecycle", "Legal compliance only", "Paper document storage", "Database administration"], correct: 1, explanation: "Content Management focuses on creating, managing, storing, and delivering digital content throughout its lifecycle, while Records Management specifically addresses retention, compliance, and legal requirements." },
+    // Data Management Process (2%)
+    { id: 32, topic: "proc", question: "According to DAMA-DMBOK, Data Management is defined as:", options: ["Only the technical storage of data", "The development, execution, and supervision of plans and programs that control, protect, deliver, and enhance the value of data", "Exclusively database administration", "Software development methodology", "Project management for IT"], correct: 1, explanation: "DAMA defines Data Management broadly as the development, execution, and supervision of plans, programs, practices, and procedures that deliver, control, protect, and enhance the value of data and information assets." },
+    // Data Ethics (2%)
+    { id: 33, topic: "eth", question: "Data ethics primarily concerns:", options: ["Database performance optimization", "The moral obligations related to gathering, protecting, and using personally identifiable and other data", "Choosing the best data storage vendor", "Writing efficient SQL queries", "Managing database licenses"], correct: 1, explanation: "Data ethics addresses the moral principles and responsibilities around collecting, storing, sharing, and using data — particularly personally identifiable information and sensitive data." },
+    // Big Data (2%)
+    { id: 34, topic: "big", question: "The '3 Vs' that originally defined Big Data are:", options: ["Value, Verification, Visualization", "Volume, Velocity, Variety", "Version, Validation, Virtualization", "Vendor, Volume, Value", "Volatility, Validity, Verification"], correct: 1, explanation: "The original 3 Vs of Big Data are Volume (large amounts of data), Velocity (high speed of data generation), and Variety (diverse types and sources of data)." },
+    { id: 35, topic: "big", question: "MapReduce is a programming model primarily used for:", options: ["Creating user interfaces", "Processing and generating large datasets across distributed clusters", "Managing database transactions", "Designing data models", "Encrypting network traffic"], correct: 1, explanation: "MapReduce is a programming model for processing large datasets in parallel across distributed computing clusters, breaking work into 'map' and 'reduce' operations." },
+];
+// Study guide content
+const STUDY_GUIDES = {
+    gov: {
+        title: "Data Governance",
+        summary: "Data Governance (DG) is the exercise of authority and control (planning, implementation, monitoring, and enforcement) over the management of data assets. DG ensures data is properly managed without directly executing data management — it is the oversight function, like an auditor overseeing financial processes. In the DAMA Wheel, Data Governance sits at the CENTER, guiding all other knowledge areas.",
+        keyConceptsList: [
+            "DG vs DM — Governance = oversight (ensures data is managed properly). Management = execution (actually manages data). Inherent separation of duty.",
+            "DG Organization Hierarchy — Steering Committee (highest authority, funds DG) → DG Council (manages initiatives, issues, escalations) → DG Office (enterprise definitions & standards) → Data Stewardship Teams (subject-area focused)",
+            "Political Governance Analogy — Legislative (policies, standards, Enterprise Data Architecture), Judicial (issue management & escalation), Executive (protecting, serving, administrative)",
+            "Data Steward Types — Chief, Executive, Enterprise (cross-BU oversight), Business (SME, accountable for data subset), Data Owner (business person, decisions about data in their domain), Technical (IT: DBA, BI, DQ analysts), Coordinating (leads steward teams)",
+            "Operating Model Types — Centralized (one org oversees all), Replicated (same model adopted independently by each BU), Federated (one org coordinates with multiple BUs for consistent standards)",
+            "DG Scope — 8 areas: Strategy, Policy, Standards, Oversight, Compliance, Issue Management, Data Management Projects, Data Asset Valuation",
+            "Business Glossary — Collection of business terms and definitions providing shared vocabulary. Managed by Data Stewards. Different from a Data Dictionary (technical structures).",
+            "Data Policies — Enterprise-wide directives codifying principles into rules for data creation, acquisition, integrity, security, quality, and use. Support data standards.",
+            "Data Asset Valuation — Methods: Replacement cost, Market value, Identified opportunities, Selling data, Risk cost (penalties/litigation).",
+            "Change Management — DG requires organizational change management. Culture change is essential. Needs C-level sponsorship (CRO, CFO, or CDO). The DMBOK states 'organizational change requires individual change.'",
+            "DG is NOT IT Governance — IT Governance focuses on IT investments, applications, and technical architecture. DG focuses exclusively on managing data assets.",
+            "Most Common DG Driver — Regulatory compliance, especially in financial services and healthcare. Typical scenario: company needs better customer data → starts MDM → realizes MDM requires DG.",
+        ],
+        examTip: "HIGHEST-WEIGHT TOPIC (11%, ~11 questions). Know the DG org hierarchy cold (Steering Committee > Council > Office > Stewardship Teams). Understand the political analogy (Legislative=Policies, Judicial=Issues, Executive=Admin). Key distinctions: DG vs DM, Glossary vs Dictionary, Policy vs Standard, and Data Owner = BUSINESS role not IT."
+    },
+    qual: {
+        title: "Data Quality",
+        summary: "Data Quality Management ensures data is fit for consumption by planning, implementing, and controlling activities that apply quality techniques to data. The key dimensions are accuracy, completeness, consistency, timeliness, validity, and uniqueness.",
+        keyConceptsList: [
+            "DQ Dimensions — accuracy, completeness, consistency, timeliness, validity, uniqueness",
+            "Data Profiling — statistical analysis of data content and structure",
+            "Data Cleansing — correcting, standardizing, and enriching data",
+            "Root Cause Analysis — finding and fixing the source of quality issues",
+            "DQ Metrics & Monitoring — measuring and tracking quality over time",
+        ],
+        examTip: "Also 11% weight. Know the difference between each quality dimension. Understand the DQ lifecycle: profile → assess → cleanse → monitor."
+    },
+    model: {
+        title: "Data Modeling & Design",
+        summary: "Data Modeling is the process of discovering, analyzing, and scoping data requirements, then representing them in a precise form called a data model. The three levels are conceptual, logical, and physical.",
+        keyConceptsList: [
+            "Conceptual Model — high-level business entities and relationships",
+            "Logical Model — detailed attributes, keys, and normalized structure",
+            "Physical Model — implementation-specific (tables, indexes, partitions)",
+            "Normalization — 1NF, 2NF, 3NF, BCNF to reduce redundancy",
+            "Dimensional Modeling — star schema, snowflake, fact and dimension tables",
+        ],
+        examTip: "11% weight. Expect questions on normalization forms, the three model levels, and ER diagram concepts. Know star vs. snowflake schemas."
+    },
+    meta: {
+        title: "Metadata Management",
+        summary: "Metadata is 'data about data.' Metadata Management involves establishing policies and processes to ensure metadata is available, accurate, and used effectively across the organization.",
+        keyConceptsList: [
+            "Types — business metadata, technical metadata, operational metadata",
+            "Data Catalog — searchable inventory of available data assets",
+            "Data Lineage — tracking data origin, movement, and transformation",
+            "Metadata Repository — central store for metadata",
+            "Standards — ISO 11179, Dublin Core, and other metadata standards",
+        ],
+        examTip: "11% weight. Understand the three types of metadata clearly. Data lineage questions are very common."
+    },
+    mref: {
+        title: "Master & Reference Data Management",
+        summary: "MDM ensures that an organization's shared master data (customers, products, locations) is accurate, consistent, and controlled. Reference data provides the values used to classify and relate master data.",
+        keyConceptsList: [
+            "Golden Record — the single best version of a master data entity",
+            "Match & Merge — identifying and consolidating duplicate records",
+            "MDM Architectures — registry, consolidation, coexistence, centralized",
+            "Reference Data — codes, lookups, and classification schemes",
+            "Data Sharing Agreements — governing cross-organizational data exchange",
+        ],
+        examTip: "10% weight. Know the different MDM implementation styles and when each is appropriate. Understand golden record creation."
+    },
+    dwbi: {
+        title: "Data Warehousing & BI",
+        summary: "Data Warehousing involves collecting and managing data from varied sources to provide meaningful business insights. BI encompasses the strategies and technologies for analyzing business data.",
+        keyConceptsList: [
+            "ETL/ELT — Extract, Transform, Load processes",
+            "Dimensional Modeling — facts, dimensions, star & snowflake schemas",
+            "Slowly Changing Dimensions — Types 1, 2, and 3",
+            "OLAP — Online Analytical Processing and cubes",
+            "Data Marts — subject-specific subsets of the warehouse",
+        ],
+        examTip: "10% weight. SCD types are a favorite exam topic. Know the difference between ETL and ELT, OLAP vs OLTP."
+    },
+    arch: {
+        title: "Data Architecture",
+        summary: "Data Architecture defines the blueprint for managing data assets by aligning with organizational strategy. It includes models, policies, rules, and standards that govern data collection, storage, and use.",
+        keyConceptsList: [
+            "Enterprise Data Architecture — the master blueprint for data management",
+            "Data Flow Architecture — how data moves through the enterprise",
+            "Data Lakes vs. Warehouses — schema-on-read vs. schema-on-write",
+            "Integration Architecture — patterns for connecting data systems",
+            "Architecture Frameworks — Zachman, TOGAF, and DAMA alignment",
+        ],
+        examTip: "6% weight. Understand the relationship between data architecture and enterprise architecture. Know data lake vs. warehouse distinctions."
+    },
+    intg: {
+        title: "Data Integration & Interoperability",
+        summary: "Data Integration involves combining data from different sources to provide a unified view. Interoperability ensures systems can exchange and use information effectively.",
+        keyConceptsList: [
+            "Integration Patterns — batch, real-time, event-driven, API-based",
+            "Data Virtualization — unified view without physical data movement",
+            "Message Queues — asynchronous data exchange",
+            "Canonical Data Models — standard models for data exchange",
+            "SOA & Microservices — service-oriented data integration",
+        ],
+        examTip: "6% weight. Focus on understanding integration patterns and when each is appropriate."
+    },
+    sec: {
+        title: "Data Security",
+        summary: "Data Security ensures data assets are protected from unauthorized access, corruption, or theft. It encompasses policies, procedures, and technologies for data protection.",
+        keyConceptsList: [
+            "Classification — categorizing data by sensitivity level",
+            "Access Control — authentication, authorization, least privilege",
+            "Encryption — protecting data at rest and in transit",
+            "Data Masking — replacing sensitive data with realistic fake values",
+            "Regulatory Compliance — GDPR, HIPAA, CCPA, and other regulations",
+        ],
+        examTip: "6% weight. Know the principle of least privilege, data classification levels, and key privacy regulations."
+    },
+    stor: {
+        title: "Data Storage & Operations",
+        summary: "Covers the design, implementation, and management of data storage to maximize the value of data assets. Includes database management, performance tuning, and operations.",
+        keyConceptsList: [
+            "ACID Properties — Atomicity, Consistency, Isolation, Durability",
+            "Database Types — relational, NoSQL, graph, document, columnar",
+            "Normalization — reducing redundancy and improving integrity",
+            "Backup & Recovery — protecting against data loss",
+            "Performance Tuning — indexing, query optimization, partitioning",
+        ],
+        examTip: "6% weight. ACID properties are frequently tested. Understand different database types and their use cases."
+    },
+    doc: {
+        title: "Document & Content Management",
+        summary: "Managing the lifecycle of documents and unstructured content — from creation through storage, retrieval, and eventual disposition or archival.",
+        keyConceptsList: [
+            "Records Management — retention, compliance, legal holds",
+            "Content Lifecycle — create, store, manage, archive, dispose",
+            "Taxonomies & Classification — organizing content for discovery",
+            "Digital Asset Management — managing rich media content",
+            "Compliance — regulatory requirements for record keeping",
+        ],
+        examTip: "6% weight. Understand the difference between records management and content management. Know retention schedules."
+    },
+    proc: {
+        title: "Data Management Process",
+        summary: "The overarching discipline of managing data as a valuable asset. DAMA's definition encompasses the development, execution, and supervision of plans that deliver, control, protect, and enhance the value of data.",
+        keyConceptsList: [
+            "DAMA Wheel — the 11 knowledge areas and their relationships",
+            "Data Management Strategy — aligning data management with business goals",
+            "Maturity Models — assessing organizational data management capability",
+            "Data Management Organization — roles, responsibilities, structures",
+        ],
+        examTip: "Only 2% weight, but understanding the DAMA framework helps contextualize all other topics."
+    },
+    eth: {
+        title: "Data Ethics",
+        summary: "The moral principles governing data collection, storage, use, and sharing. Emphasizes responsible data handling, privacy, transparency, and the impact of data decisions on individuals and society.",
+        keyConceptsList: [
+            "Privacy Principles — consent, purpose limitation, data minimization",
+            "Ethical Data Use — fairness, transparency, accountability",
+            "Bias & Discrimination — recognizing and mitigating algorithmic bias",
+            "Regulatory Context — GDPR, CCPA, and ethical frameworks",
+        ],
+        examTip: "Only 2% weight. Focus on core ethical principles and how they relate to privacy regulations."
+    },
+    big: {
+        title: "Big Data",
+        summary: "Big Data refers to datasets too large or complex for traditional data processing. Characterized by Volume, Velocity, Variety (and sometimes Veracity and Value).",
+        keyConceptsList: [
+            "The Vs — Volume, Velocity, Variety (+ Veracity, Value)",
+            "Distributed Processing — Hadoop, MapReduce, Spark",
+            "NoSQL Databases — document, key-value, columnar, graph stores",
+            "Streaming — real-time processing of continuous data flows",
+        ],
+        examTip: "Only 2% weight. Know the Vs and basic distributed computing concepts."
+    },
+};
+const ACHIEVEMENTS = [
+    { id: "first_quiz", name: "First Steps", desc: "Complete your first quiz", icon: "🎯", condition: (s) => s.totalQuizzes >= 1 },
+    { id: "streak_3", name: "On Fire", desc: "3-day study streak", icon: "🔥", condition: (s) => s.streak >= 3 },
+    { id: "streak_7", name: "Unstoppable", desc: "7-day study streak", icon: "⚡", condition: (s) => s.streak >= 7 },
+    { id: "perfect", name: "Perfectionist", desc: "Score 100% on any quiz", icon: "💎", condition: (s) => s.perfectQuizzes >= 1 },
+    { id: "all_topics", name: "Well-Rounded", desc: "Study all 14 topics", icon: "🌟", condition: (s) => s.topicsCovered >= 14 },
+    { id: "fifty_q", name: "Half Century", desc: "Answer 50 questions", icon: "📚", condition: (s) => s.totalAnswered >= 50 },
+    { id: "hundred_q", name: "Centurion", desc: "Answer 100 questions", icon: "🏆", condition: (s) => s.totalAnswered >= 100 },
+    { id: "master", name: "Master Level", desc: "Average score above 80%", icon: "👑", condition: (s) => s.avgScore >= 80 && s.totalQuizzes >= 3 },
+];
+const LEVELS = [
+    { name: "Beginner", min: 0, max: 99, badge: "🌱" },
+    { name: "Explorer", min: 100, max: 299, badge: "🧭" },
+    { name: "Apprentice", min: 300, max: 599, badge: "📘" },
+    { name: "Practitioner", min: 600, max: 999, badge: "⚡" },
+    { name: "Expert", min: 1000, max: 1499, badge: "🎯" },
+    { name: "Master", min: 1500, max: 2499, badge: "👑" },
+    { name: "Champion", min: 2500, max: Infinity, badge: "🏆" },
+];
+// ─── Helper Functions ──────────────────────────────────────
+function getLevel(xp) {
+    return LEVELS.find((l) => xp >= l.min && xp <= l.max) || LEVELS[0];
+}
+function getLevelProgress(xp) {
+    const level = getLevel(xp);
+    if (level.max === Infinity)
+        return 100;
+    return Math.round(((xp - level.min) / (level.max - level.min)) * 100);
+}
+// ─── Main App ──────────────────────────────────────────────
+export default function CDMPCoachingPlatform() {
+    const [page, setPage] = useState("dashboard");
+    const [clientName, setClientName] = useState("Sarah");
+    const [xp, setXp] = useState(420);
+    const [streak, setStreak] = useState(4);
+    const [quizState, setQuizState] = useState(null);
+    const [studyTopic, setStudyTopic] = useState(null);
+    const [selectedAnswer, setSelectedAnswer] = useState(null);
+    const [showExplanation, setShowExplanation] = useState(false);
+    const [history, setHistory] = useState(() => {
+        // Simulated history for demo
+        const h = {};
+        TOPICS.forEach((t) => {
+            h[t.id] = { correct: Math.floor(Math.random() * 8), total: Math.floor(Math.random() * 12) + 2, lastStudied: null };
+        });
+        h["gov"] = { correct: 9, total: 12, lastStudied: "2025-02-27" };
+        h["qual"] = { correct: 7, total: 10, lastStudied: "2025-02-26" };
+        h["model"] = { correct: 5, total: 8, lastStudied: "2025-02-25" };
+        return h;
+    });
+    const [quizResults, setQuizResults] = useState([
+        { date: "2025-02-22", score: 62, questions: 10 },
+        { date: "2025-02-23", score: 68, questions: 10 },
+        { date: "2025-02-24", score: 71, questions: 10 },
+        { date: "2025-02-25", score: 75, questions: 10 },
+        { date: "2025-02-26", score: 72, questions: 10 },
+        { date: "2025-02-27", score: 80, questions: 10 },
+    ]);
+    const stats = useMemo(() => {
+        const totalCorrect = Object.values(history).reduce((s, h) => s + h.correct, 0);
+        const totalAnswered = Object.values(history).reduce((s, h) => s + h.total, 0);
+        const avgScore = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+        const topicsCovered = Object.values(history).filter((h) => h.total > 0).length;
+        const perfectQuizzes = quizResults.filter((r) => r.score === 100).length;
+        return { totalQuizzes: quizResults.length, totalAnswered, avgScore, topicsCovered, perfectQuizzes, streak };
+    }, [history, quizResults, streak]);
+    const unlockedAchievements = ACHIEVEMENTS.filter((a) => a.condition(stats));
+    const level = getLevel(xp);
+    const levelProgress = getLevelProgress(xp);
+    const startQuiz = useCallback((topicId = null) => {
+        let pool = topicId ? QUESTION_BANK.filter((q) => q.topic === topicId) : [...QUESTION_BANK];
+        // Shuffle and pick 10
+        const shuffled = pool.sort(() => Math.random() - 0.5).slice(0, Math.min(10, pool.length));
+        setQuizState({ questions: shuffled, current: 0, score: 0, answers: [], topicId });
+        setSelectedAnswer(null);
+        setShowExplanation(false);
+        setPage("quiz");
+    }, []);
+    const handleAnswer = (idx) => {
+        if (showExplanation)
+            return;
+        setSelectedAnswer(idx);
+        setShowExplanation(true);
+        const q = quizState.questions[quizState.current];
+        const isCorrect = idx === q.correct;
+        if (isCorrect) {
+            setXp((prev) => prev + 15);
+        }
+        setQuizState((prev) => ({
+            ...prev,
+            score: isCorrect ? prev.score + 1 : prev.score,
+            answers: [...prev.answers, { questionId: q.id, selected: idx, correct: isCorrect }],
+        }));
+    };
+    const nextQuestion = () => {
+        if (quizState.current + 1 >= quizState.questions.length) {
+            const finalScore = Math.round((quizState.score / quizState.questions.length) * 100);
+            setQuizResults((prev) => [...prev, { date: new Date().toISOString().split("T")[0], score: finalScore, questions: quizState.questions.length }]);
+            setXp((prev) => prev + 50); // bonus for completing quiz
+            // Update history
+            const newHistory = { ...history };
+            quizState.answers.forEach((a, i) => {
+                const q = quizState.questions[i];
+                if (!newHistory[q.topic])
+                    newHistory[q.topic] = { correct: 0, total: 0, lastStudied: null };
+                newHistory[q.topic].total += 1;
+                if (a.correct)
+                    newHistory[q.topic].correct += 1;
+                newHistory[q.topic].lastStudied = new Date().toISOString().split("T")[0];
+            });
+            setHistory(newHistory);
+            setQuizState((prev) => ({ ...prev, finished: true, finalScore }));
+        }
+        else {
+            setQuizState((prev) => ({ ...prev, current: prev.current + 1 }));
+            setSelectedAnswer(null);
+            setShowExplanation(false);
+        }
+    };
+    // ─── Styles ───────────────────────────────────────────────
+    const styles = {
+        app: { minHeight: "100vh", background: "#0B0E14", color: "#E2E8F0", fontFamily: "'DM Sans', 'Segoe UI', sans-serif" },
+        sidebar: { width: 260, background: "#111827", borderRight: "1px solid #1E293B", position: "fixed", top: 0, left: 0, height: "100vh", display: "flex", flexDirection: "column", zIndex: 100 },
+        main: { marginLeft: 260, padding: "32px 40px", minHeight: "100vh" },
+        card: { background: "linear-gradient(135deg, #151C28 0%, #1A2332 100%)", borderRadius: 16, border: "1px solid #1E293B", padding: 24 },
+        cardGlow: (color) => ({ background: `linear-gradient(135deg, ${color}10 0%, #151C28 100%)`, borderRadius: 16, border: `1px solid ${color}30`, padding: 24 }),
+        pill: (active) => ({ padding: "10px 18px", borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, background: active ? "linear-gradient(135deg, #E8B931 0%, #D4A520 100%)" : "transparent", color: active ? "#0B0E14" : "#94A3B8", fontWeight: active ? 700 : 500, fontSize: 14, border: "none", width: "100%", textAlign: "left", transition: "all 0.2s" }),
+        btn: (variant = "primary") => ({
+            padding: "12px 24px", borderRadius: 10, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14,
+            background: variant === "primary" ? "linear-gradient(135deg, #E8B931 0%, #D4A520 100%)" : variant === "ghost" ? "transparent" : "#1E293B",
+            color: variant === "primary" ? "#0B0E14" : "#E2E8F0",
+            transition: "all 0.2s",
+        }),
+        progressBar: (pct, color = "#E8B931") => ({
+            height: 8, borderRadius: 4, background: "#1E293B", position: "relative", overflow: "hidden",
+            inner: { position: "absolute", left: 0, top: 0, height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${color}, ${color}CC)`, borderRadius: 4, transition: "width 0.6s ease" }
+        }),
+    };
+    const navItems = [
+        { id: "dashboard", icon: "📊", label: "Dashboard" },
+        { id: "quiz", icon: "❓", label: "Practice Quiz" },
+        { id: "topics", icon: "📚", label: "Study Guides" },
+        { id: "progress", icon: "📈", label: "Progress" },
+        { id: "achievements", icon: "🏆", label: "Achievements" },
+    ];
+    // ─── Render Sidebar ───────────────────────────────────────
+    const renderSidebar = () => (React.createElement("div", { style: styles.sidebar },
+        React.createElement("div", { style: { padding: "24px 20px", borderBottom: "1px solid #1E293B" } },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+                React.createElement("div", { style: { width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, #E8B931, #D4A520)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, color: "#0B0E14" } }, "C"),
+                React.createElement("div", null,
+                    React.createElement("div", { style: { fontWeight: 800, fontSize: 15, color: "#E2E8F0", letterSpacing: "-0.02em" } }, "CDMP Coach"),
+                    React.createElement("div", { style: { fontSize: 11, color: "#64748B", fontWeight: 500 } }, "Fundamentals Prep")))),
+        React.createElement("div", { style: { padding: "16px 12px", flex: 1 } },
+            React.createElement("div", { style: { fontSize: 11, color: "#475569", fontWeight: 600, padding: "0 8px 8px", textTransform: "uppercase", letterSpacing: "0.08em" } }, "Navigation"),
+            navItems.map((item) => (React.createElement("button", { key: item.id, onClick: () => { setPage(item.id); setStudyTopic(null); if (item.id === "quiz" && !quizState) { /* don't auto-start */ } }, style: styles.pill(page === item.id) },
+                React.createElement("span", { style: { fontSize: 16 } }, item.icon),
+                item.label)))),
+        React.createElement("div", { style: { padding: 16, borderTop: "1px solid #1E293B" } },
+            React.createElement("div", { style: { ...styles.card, padding: 16 } },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 8 } },
+                    React.createElement("div", { style: { width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #E8B931, #D4A520)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 } }, level.badge),
+                    React.createElement("div", null,
+                        React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "#E2E8F0" } }, clientName),
+                        React.createElement("div", { style: { fontSize: 11, color: "#E8B931" } },
+                            level.name,
+                            " \u2022 ",
+                            xp,
+                            " XP"))),
+                React.createElement("div", { style: { ...styles.progressBar(levelProgress) } },
+                    React.createElement("div", { style: styles.progressBar(levelProgress).inner }))))));
+    // ─── Dashboard ────────────────────────────────────────────
+    const renderDashboard = () => {
+        const overallScore = stats.avgScore;
+        const certLevel = overallScore >= 80 ? "Master" : overallScore >= 70 ? "Practitioner" : overallScore >= 60 ? "Associate" : "Below Passing";
+        const certColor = overallScore >= 80 ? "#E8B931" : overallScore >= 70 ? "#4ECDC4" : overallScore >= 60 ? "#06B6D4" : "#EF4444";
+        return (React.createElement("div", null,
+            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 } },
+                React.createElement("div", null,
+                    React.createElement("h1", { style: { fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: "-0.03em" } },
+                        "Welcome back, ",
+                        clientName,
+                        " \uD83D\uDC4B"),
+                    React.createElement("p", { style: { color: "#64748B", margin: "4px 0 0", fontSize: 14 } },
+                        "Your CDMP Fundamentals journey \u2014 Day ",
+                        streak,
+                        " streak")),
+                React.createElement("button", { onClick: () => startQuiz(), style: styles.btn("primary") }, "\u25B6 Start Practice Quiz")),
+            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 } }, [
+                { label: "Overall Score", value: `${overallScore}%`, sub: certLevel, color: certColor },
+                { label: "Questions Done", value: stats.totalAnswered, sub: `${stats.totalQuizzes} quizzes`, color: "#4ECDC4" },
+                { label: "Study Streak", value: `${streak} days`, sub: "Keep it up!", color: "#F97316" },
+                { label: "Topics Covered", value: `${stats.topicsCovered}/14`, sub: `${14 - stats.topicsCovered} remaining`, color: "#A78BFA" },
+            ].map((s, i) => (React.createElement("div", { key: i, style: styles.cardGlow(s.color) },
+                React.createElement("div", { style: { fontSize: 12, color: "#64748B", fontWeight: 600, marginBottom: 8 } }, s.label),
+                React.createElement("div", { style: { fontSize: 32, fontWeight: 800, color: s.color, letterSpacing: "-0.03em" } }, s.value),
+                React.createElement("div", { style: { fontSize: 12, color: "#94A3B8", marginTop: 4 } }, s.sub))))),
+            React.createElement("div", { style: { ...styles.card, marginBottom: 24, display: "flex", alignItems: "center", gap: 24 } },
+                React.createElement("div", { style: { flex: "0 0 auto" } },
+                    React.createElement("div", { style: { width: 100, height: 100, borderRadius: "50%", border: `4px solid ${certColor}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: `${certColor}10` } },
+                        React.createElement("span", { style: { fontSize: 28, fontWeight: 800, color: certColor } },
+                            overallScore,
+                            "%"),
+                        React.createElement("span", { style: { fontSize: 10, color: "#94A3B8" } }, "avg score"))),
+                React.createElement("div", { style: { flex: 1 } },
+                    React.createElement("h3", { style: { margin: "0 0 8px", fontSize: 18, fontWeight: 700 } }, "Certification Readiness"),
+                    React.createElement("div", { style: { display: "flex", gap: 16, marginBottom: 12 } }, [
+                        { label: "Associate (60%)", met: overallScore >= 60 },
+                        { label: "Practitioner (70%)", met: overallScore >= 70 },
+                        { label: "Master (80%)", met: overallScore >= 80 },
+                    ].map((tier, i) => (React.createElement("div", { key: i, style: { padding: "6px 14px", borderRadius: 8, background: tier.met ? "#10B98120" : "#1E293B", border: `1px solid ${tier.met ? "#10B981" : "#334155"}`, fontSize: 12, fontWeight: 600, color: tier.met ? "#10B981" : "#64748B" } },
+                        tier.met ? "✓ " : "",
+                        tier.label)))),
+                    React.createElement("p", { style: { color: "#94A3B8", fontSize: 13, margin: 0 } }, overallScore < 60 ? "Keep studying! Focus on the high-weight topics to boost your score." :
+                        overallScore < 70 ? "You're passing at Associate level. Push for 70% to reach Practitioner!" :
+                            overallScore < 80 ? "Great work! You're at Practitioner level. Aim for 80% for Master!" :
+                                "Outstanding! You're performing at Master level. Keep it up!"))),
+            React.createElement("div", { style: { ...styles.card, marginBottom: 24 } },
+                React.createElement("h3", { style: { margin: "0 0 16px", fontSize: 16, fontWeight: 700 } }, "Score Trend"),
+                React.createElement("div", { style: { display: "flex", alignItems: "flex-end", gap: 8, height: 120 } }, quizResults.slice(-8).map((r, i) => (React.createElement("div", { key: i, style: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 } },
+                    React.createElement("span", { style: { fontSize: 11, color: "#94A3B8", fontWeight: 600 } },
+                        r.score,
+                        "%"),
+                    React.createElement("div", { style: {
+                            width: "100%", borderRadius: "6px 6px 0 0",
+                            height: `${r.score}%`,
+                            background: r.score >= 80 ? "linear-gradient(180deg, #E8B931, #D4A52080)" : r.score >= 70 ? "linear-gradient(180deg, #4ECDC4, #4ECDC480)" : r.score >= 60 ? "linear-gradient(180deg, #06B6D4, #06B6D480)" : "linear-gradient(180deg, #EF4444, #EF444480)",
+                            transition: "height 0.6s ease"
+                        } }),
+                    React.createElement("span", { style: { fontSize: 10, color: "#475569" } }, r.date.slice(5)))))),
+                React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: 16, marginTop: 12 } }, [{ label: "Master 80%+", color: "#E8B931" }, { label: "Practitioner 70%+", color: "#4ECDC4" }, { label: "Associate 60%+", color: "#06B6D4" }, { label: "Below", color: "#EF4444" }].map((l, i) => (React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#64748B" } },
+                    React.createElement("div", { style: { width: 8, height: 8, borderRadius: 2, background: l.color } }),
+                    l.label))))),
+            React.createElement("div", { style: { ...styles.card } },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 } },
+                    React.createElement("h3", { style: { margin: 0, fontSize: 16, fontWeight: 700 } }, "Topic Performance"),
+                    React.createElement("span", { style: { fontSize: 12, color: "#64748B" } }, "Sorted by exam weight")),
+                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 } }, TOPICS.map((t) => {
+                    const h = history[t.id] || { correct: 0, total: 0 };
+                    const pct = h.total > 0 ? Math.round((h.correct / h.total) * 100) : 0;
+                    return (React.createElement("div", { key: t.id, style: { display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, background: "#0F1520", border: "1px solid #1E293B", cursor: "pointer", transition: "all 0.2s" }, onClick: () => { setStudyTopic(t.id); setPage("topics"); } },
+                        React.createElement("span", { style: { fontSize: 20 } }, t.icon),
+                        React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } },
+                                React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "#E2E8F0" } }, t.name),
+                                React.createElement("span", { style: { fontSize: 11, color: pct >= 80 ? "#E8B931" : pct >= 60 ? "#4ECDC4" : "#EF4444", fontWeight: 700 } },
+                                    pct,
+                                    "%")),
+                            React.createElement("div", { style: styles.progressBar(pct, t.color) },
+                                React.createElement("div", { style: styles.progressBar(pct, t.color).inner })),
+                            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 4 } },
+                                React.createElement("span", { style: { fontSize: 10, color: "#475569" } },
+                                    t.weight,
+                                    "% of exam"),
+                                React.createElement("span", { style: { fontSize: 10, color: "#475569" } },
+                                    h.correct,
+                                    "/",
+                                    h.total,
+                                    " correct")))));
+                })))));
+    };
+    // ─── Quiz ─────────────────────────────────────────────────
+    const renderQuiz = () => {
+        if (!quizState) {
+            return (React.createElement("div", null,
+                React.createElement("h1", { style: { fontSize: 28, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.03em" } }, "Practice Quiz"),
+                React.createElement("p", { style: { color: "#64748B", margin: "0 0 32px", fontSize: 14 } }, "Test your CDMP Fundamentals knowledge"),
+                React.createElement("div", { style: { ...styles.card, marginBottom: 24, textAlign: "center", padding: 40 } },
+                    React.createElement("div", { style: { fontSize: 48, marginBottom: 16 } }, "\uD83C\uDFAF"),
+                    React.createElement("h2", { style: { margin: "0 0 8px", fontSize: 22, fontWeight: 700 } }, "Full Practice Exam"),
+                    React.createElement("p", { style: { color: "#94A3B8", margin: "0 0 24px", fontSize: 14 } }, "10 questions across all 14 CDMP topics, weighted by exam distribution"),
+                    React.createElement("button", { onClick: () => startQuiz(), style: { ...styles.btn("primary"), fontSize: 16, padding: "14px 32px" } }, "Start Full Quiz")),
+                React.createElement("h3", { style: { fontSize: 16, fontWeight: 700, margin: "0 0 16px" } }, "Or practice by topic:"),
+                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 } }, TOPICS.map((t) => {
+                    const count = QUESTION_BANK.filter((q) => q.topic === t.id).length;
+                    return (React.createElement("div", { key: t.id, onClick: () => startQuiz(t.id), style: { ...styles.card, cursor: "pointer", padding: 16, transition: "all 0.2s", borderColor: `${t.color}30` } },
+                        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } },
+                            React.createElement("span", { style: { fontSize: 20 } }, t.icon),
+                            React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "#E2E8F0" } }, t.name)),
+                        React.createElement("div", { style: { display: "flex", justifyContent: "space-between" } },
+                            React.createElement("span", { style: { fontSize: 11, color: "#64748B" } },
+                                count,
+                                " questions"),
+                            React.createElement("span", { style: { fontSize: 11, color: t.color, fontWeight: 600 } },
+                                t.weight,
+                                "% weight"))));
+                }))));
+        }
+        if (quizState.finished) {
+            const pct = quizState.finalScore;
+            const grade = pct >= 80 ? "Master" : pct >= 70 ? "Practitioner" : pct >= 60 ? "Associate" : "Needs Work";
+            const gradeColor = pct >= 80 ? "#E8B931" : pct >= 70 ? "#4ECDC4" : pct >= 60 ? "#06B6D4" : "#EF4444";
+            return (React.createElement("div", { style: { maxWidth: 600, margin: "0 auto", textAlign: "center" } },
+                React.createElement("div", { style: { ...styles.card, padding: 48 } },
+                    React.createElement("div", { style: { fontSize: 64, marginBottom: 16 } }, pct >= 80 ? "🏆" : pct >= 70 ? "⭐" : pct >= 60 ? "✅" : "📖"),
+                    React.createElement("h2", { style: { fontSize: 28, fontWeight: 800, margin: "0 0 8px" } }, "Quiz Complete!"),
+                    React.createElement("div", { style: { fontSize: 48, fontWeight: 800, color: gradeColor, margin: "16px 0 8px" } },
+                        pct,
+                        "%"),
+                    React.createElement("div", { style: { fontSize: 16, color: gradeColor, fontWeight: 700, marginBottom: 8 } },
+                        grade,
+                        " Level"),
+                    React.createElement("p", { style: { color: "#94A3B8", marginBottom: 24, fontSize: 14 } },
+                        quizState.score,
+                        " of ",
+                        quizState.questions.length,
+                        " correct \u2022 +",
+                        50 + quizState.score * 15,
+                        " XP earned"),
+                    React.createElement("div", { style: { display: "flex", gap: 12, justifyContent: "center" } },
+                        React.createElement("button", { onClick: () => { setQuizState(null); startQuiz(quizState.topicId); }, style: styles.btn("primary") }, "Try Again"),
+                        React.createElement("button", { onClick: () => { setQuizState(null); setPage("dashboard"); }, style: styles.btn("secondary") }, "Back to Dashboard")),
+                    React.createElement("div", { style: { marginTop: 32, textAlign: "left" } },
+                        React.createElement("h4", { style: { fontSize: 14, fontWeight: 700, marginBottom: 12 } }, "Question Review"),
+                        quizState.questions.map((q, i) => {
+                            const a = quizState.answers[i];
+                            return (React.createElement("div", { key: i, style: { padding: "10px 14px", borderRadius: 8, background: a.correct ? "#10B98110" : "#EF444410", border: `1px solid ${a.correct ? "#10B98130" : "#EF444430"}`, marginBottom: 8, fontSize: 13 } },
+                                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+                                    React.createElement("span", null, a.correct ? "✅" : "❌"),
+                                    React.createElement("span", { style: { color: "#E2E8F0" } },
+                                        q.question.slice(0, 80),
+                                        "..."))));
+                        })))));
+        }
+        const q = quizState.questions[quizState.current];
+        const topic = TOPICS.find((t) => t.id === q.topic);
+        const progress = ((quizState.current + 1) / quizState.questions.length) * 100;
+        return (React.createElement("div", { style: { maxWidth: 700, margin: "0 auto" } },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 } },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+                    React.createElement("span", { style: { fontSize: 18 } }, topic.icon),
+                    React.createElement("span", { style: { fontSize: 13, color: topic.color, fontWeight: 600 } }, topic.name)),
+                React.createElement("span", { style: { fontSize: 13, color: "#64748B", fontWeight: 600 } },
+                    "Question ",
+                    quizState.current + 1,
+                    " of ",
+                    quizState.questions.length)),
+            React.createElement("div", { style: { ...styles.progressBar(progress, "#E8B931"), marginBottom: 32, height: 6 } },
+                React.createElement("div", { style: { ...styles.progressBar(progress, "#E8B931").inner, height: 6 } })),
+            React.createElement("div", { style: styles.card },
+                React.createElement("h2", { style: { fontSize: 18, fontWeight: 700, margin: "0 0 24px", lineHeight: 1.5 } }, q.question),
+                React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, q.options.map((opt, i) => {
+                    let bg = "#0F1520";
+                    let border = "#1E293B";
+                    let textColor = "#E2E8F0";
+                    if (showExplanation) {
+                        if (i === q.correct) {
+                            bg = "#10B98120";
+                            border = "#10B981";
+                            textColor = "#10B981";
+                        }
+                        else if (i === selectedAnswer && i !== q.correct) {
+                            bg = "#EF444420";
+                            border = "#EF4444";
+                            textColor = "#EF4444";
+                        }
+                    }
+                    else if (i === selectedAnswer) {
+                        bg = "#E8B93120";
+                        border = "#E8B931";
+                    }
+                    return (React.createElement("button", { key: i, onClick: () => handleAnswer(i), style: { display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderRadius: 10, background: bg, border: `1px solid ${border}`, cursor: showExplanation ? "default" : "pointer", textAlign: "left", color: textColor, fontSize: 14, fontWeight: 500, transition: "all 0.2s" } },
+                        React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: showExplanation && i === q.correct ? "#10B981" : showExplanation && i === selectedAnswer ? "#EF4444" : "#1E293B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: showExplanation && (i === q.correct || i === selectedAnswer) ? "#fff" : "#64748B", flexShrink: 0 } }, showExplanation && i === q.correct ? "✓" : showExplanation && i === selectedAnswer && i !== q.correct ? "✗" : String.fromCharCode(65 + i)),
+                        opt));
+                })),
+                showExplanation && (React.createElement("div", { style: { marginTop: 20, padding: 16, borderRadius: 10, background: "#0B0E14", border: "1px solid #1E293B" } },
+                    React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: "#E8B931", marginBottom: 6 } }, "\uD83D\uDCA1 Explanation"),
+                    React.createElement("p", { style: { fontSize: 13, color: "#94A3B8", margin: 0, lineHeight: 1.6 } }, q.explanation))),
+                showExplanation && (React.createElement("div", { style: { marginTop: 20, display: "flex", justifyContent: "flex-end" } },
+                    React.createElement("button", { onClick: nextQuestion, style: styles.btn("primary") }, quizState.current + 1 >= quizState.questions.length ? "See Results" : "Next Question →"))))));
+    };
+    // ─── Study Guides ─────────────────────────────────────────
+    const renderTopics = () => {
+        if (studyTopic) {
+            const guide = STUDY_GUIDES[studyTopic];
+            const topic = TOPICS.find((t) => t.id === studyTopic);
+            const h = history[studyTopic] || { correct: 0, total: 0 };
+            const pct = h.total > 0 ? Math.round((h.correct / h.total) * 100) : 0;
+            return (React.createElement("div", { style: { maxWidth: 700, margin: "0 auto" } },
+                React.createElement("button", { onClick: () => setStudyTopic(null), style: { ...styles.btn("ghost"), marginBottom: 24, padding: "8px 0", color: "#64748B" } }, "\u2190 Back to all topics"),
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, marginBottom: 32 } },
+                    React.createElement("div", { style: { width: 56, height: 56, borderRadius: 14, background: `${topic.color}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 } }, topic.icon),
+                    React.createElement("div", null,
+                        React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em" } }, guide.title),
+                        React.createElement("div", { style: { display: "flex", gap: 12, marginTop: 4 } },
+                            React.createElement("span", { style: { fontSize: 12, color: topic.color, fontWeight: 600 } },
+                                topic.weight,
+                                "% of exam"),
+                            React.createElement("span", { style: { fontSize: 12, color: "#64748B" } }, "\u2022"),
+                            React.createElement("span", { style: { fontSize: 12, color: pct >= 60 ? "#10B981" : "#EF4444", fontWeight: 600 } },
+                                "Your score: ",
+                                pct,
+                                "%")))),
+                React.createElement("div", { style: { ...styles.card, marginBottom: 20 } },
+                    React.createElement("h3", { style: { margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "#E8B931" } }, "Overview"),
+                    React.createElement("p", { style: { color: "#94A3B8", fontSize: 14, lineHeight: 1.7, margin: 0 } }, guide.summary)),
+                React.createElement("div", { style: { ...styles.card, marginBottom: 20 } },
+                    React.createElement("h3", { style: { margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "#4ECDC4" } }, "Key Concepts"),
+                    guide.keyConceptsList.map((c, i) => (React.createElement("div", { key: i, style: { display: "flex", gap: 10, marginBottom: 12, padding: "10px 14px", borderRadius: 8, background: "#0B0E14" } },
+                        React.createElement("span", { style: { color: topic.color, fontWeight: 800, fontSize: 14 } }, i + 1),
+                        React.createElement("span", { style: { color: "#CBD5E1", fontSize: 13, lineHeight: 1.5 } }, c))))),
+                React.createElement("div", { style: { ...styles.cardGlow("#E8B931"), marginBottom: 20 } },
+                    React.createElement("h3", { style: { margin: "0 0 8px", fontSize: 16, fontWeight: 700, color: "#E8B931" } }, "\uD83C\uDFAF Exam Tip"),
+                    React.createElement("p", { style: { color: "#CBD5E1", fontSize: 14, lineHeight: 1.6, margin: 0 } }, guide.examTip)),
+                React.createElement("button", { onClick: () => startQuiz(studyTopic), style: { ...styles.btn("primary"), width: "100%", padding: "14px 24px", fontSize: 15 } },
+                    "Practice ",
+                    guide.title,
+                    " Questions \u2192")));
+        }
+        return (React.createElement("div", null,
+            React.createElement("h1", { style: { fontSize: 28, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.03em" } }, "Study Guides"),
+            React.createElement("p", { style: { color: "#64748B", margin: "0 0 32px", fontSize: 14 } }, "All 14 CDMP knowledge areas from DAMA-DMBOK2"),
+            React.createElement("div", { style: { marginBottom: 24 } },
+                React.createElement("h3", { style: { fontSize: 14, fontWeight: 700, color: "#E8B931", margin: "0 0 12px" } }, "High Weight Topics (10-11%)"),
+                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 } }, TOPICS.filter((t) => t.weight >= 10).map((t) => renderTopicCard(t)))),
+            React.createElement("div", { style: { marginBottom: 24 } },
+                React.createElement("h3", { style: { fontSize: 14, fontWeight: 700, color: "#4ECDC4", margin: "0 0 12px" } }, "Medium Weight Topics (6%)"),
+                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 } }, TOPICS.filter((t) => t.weight === 6).map((t) => renderTopicCard(t)))),
+            React.createElement("div", null,
+                React.createElement("h3", { style: { fontSize: 14, fontWeight: 700, color: "#64748B", margin: "0 0 12px" } }, "Low Weight Topics (2%)"),
+                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 } }, TOPICS.filter((t) => t.weight === 2).map((t) => renderTopicCard(t))))));
+    };
+    const renderTopicCard = (t) => {
+        const h = history[t.id] || { correct: 0, total: 0 };
+        const pct = h.total > 0 ? Math.round((h.correct / h.total) * 100) : 0;
+        return (React.createElement("div", { key: t.id, onClick: () => setStudyTopic(t.id), style: { ...styles.card, cursor: "pointer", padding: 18, transition: "all 0.2s", borderColor: `${t.color}20` } },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 } },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+                    React.createElement("span", { style: { fontSize: 22 } }, t.icon),
+                    React.createElement("span", { style: { fontSize: 14, fontWeight: 700 } }, t.name)),
+                React.createElement("span", { style: { fontSize: 12, background: `${t.color}20`, color: t.color, padding: "3px 8px", borderRadius: 6, fontWeight: 700 } },
+                    t.weight,
+                    "%")),
+            React.createElement("div", { style: { ...styles.progressBar(pct, t.color), marginBottom: 6 } },
+                React.createElement("div", { style: styles.progressBar(pct, t.color).inner })),
+            React.createElement("div", { style: { fontSize: 11, color: "#64748B" } },
+                pct,
+                "% mastery \u2022 ",
+                h.total,
+                " questions attempted")));
+    };
+    // ─── Progress ─────────────────────────────────────────────
+    const renderProgress = () => {
+        const weakTopics = TOPICS.map((t) => {
+            const h = history[t.id] || { correct: 0, total: 0 };
+            return { ...t, pct: h.total > 0 ? Math.round((h.correct / h.total) * 100) : 0, ...h };
+        }).sort((a, b) => a.pct - b.pct);
+        return (React.createElement("div", null,
+            React.createElement("h1", { style: { fontSize: 28, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.03em" } }, "Progress Report"),
+            React.createElement("p", { style: { color: "#64748B", margin: "0 0 32px", fontSize: 14 } }, "Detailed breakdown of your CDMP preparation"),
+            React.createElement("div", { style: { ...styles.card, marginBottom: 24 } },
+                React.createElement("h3", { style: { margin: "0 0 16px", fontSize: 16, fontWeight: 700 } }, "Simulated Exam Score"),
+                React.createElement("p", { style: { color: "#94A3B8", fontSize: 13, margin: "0 0 16px" } }, "Based on your topic scores weighted by actual CDMP exam distribution:"),
+                (() => {
+                    const weightedScore = TOPICS.reduce((sum, t) => {
+                        const h = history[t.id] || { correct: 0, total: 0 };
+                        const pct = h.total > 0 ? (h.correct / h.total) * 100 : 50;
+                        return sum + pct * (t.weight / 100);
+                    }, 0);
+                    const ws = Math.round(weightedScore);
+                    return (React.createElement("div", { style: { textAlign: "center", padding: "20px 0" } },
+                        React.createElement("div", { style: { fontSize: 56, fontWeight: 800, color: ws >= 80 ? "#E8B931" : ws >= 70 ? "#4ECDC4" : ws >= 60 ? "#06B6D4" : "#EF4444" } },
+                            ws,
+                            "%"),
+                        React.createElement("div", { style: { fontSize: 14, color: "#94A3B8" } },
+                            "Weighted estimate \u2022 ",
+                            ws >= 60 ? "Passing" : "Not yet passing")));
+                })()),
+            React.createElement("div", { style: { ...styles.card, marginBottom: 24 } },
+                React.createElement("h3", { style: { margin: "0 0 4px", fontSize: 16, fontWeight: 700 } }, "Areas to Improve"),
+                React.createElement("p", { style: { color: "#64748B", fontSize: 12, margin: "0 0 16px" } }, "Topics with lowest performance, prioritized by exam weight"),
+                weakTopics.slice(0, 5).map((t, i) => (React.createElement("div", { key: t.id, style: { display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: i < 4 ? "1px solid #1E293B" : "none" } },
+                    React.createElement("span", { style: { width: 24, textAlign: "center", fontSize: 14, color: "#475569", fontWeight: 700 } }, i + 1),
+                    React.createElement("span", { style: { fontSize: 18 } }, t.icon),
+                    React.createElement("div", { style: { flex: 1 } },
+                        React.createElement("div", { style: { fontSize: 13, fontWeight: 600 } }, t.name),
+                        React.createElement("div", { style: { fontSize: 11, color: "#64748B" } },
+                            t.weight,
+                            "% of exam \u2022 ",
+                            t.total,
+                            " questions attempted")),
+                    React.createElement("span", { style: { fontSize: 16, fontWeight: 800, color: t.pct >= 60 ? "#10B981" : "#EF4444" } },
+                        t.pct,
+                        "%"),
+                    React.createElement("button", { onClick: () => startQuiz(t.id), style: { ...styles.btn("secondary"), padding: "6px 12px", fontSize: 11 } }, "Practice"))))),
+            React.createElement("div", { style: styles.card },
+                React.createElement("h3", { style: { margin: "0 0 16px", fontSize: 16, fontWeight: 700 } }, "All Topics"),
+                TOPICS.map((t) => {
+                    const h = history[t.id] || { correct: 0, total: 0 };
+                    const pct = h.total > 0 ? Math.round((h.correct / h.total) * 100) : 0;
+                    return (React.createElement("div", { key: t.id, style: { marginBottom: 16 } },
+                        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } },
+                            React.createElement("span", { style: { fontSize: 13, fontWeight: 600 } },
+                                t.icon,
+                                " ",
+                                t.name),
+                            React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: pct >= 80 ? "#E8B931" : pct >= 60 ? "#4ECDC4" : "#EF4444" } },
+                                pct,
+                                "%")),
+                        React.createElement("div", { style: styles.progressBar(pct, t.color) },
+                            React.createElement("div", { style: styles.progressBar(pct, t.color).inner }))));
+                }))));
+    };
+    // ─── Achievements ─────────────────────────────────────────
+    const renderAchievements = () => (React.createElement("div", null,
+        React.createElement("h1", { style: { fontSize: 28, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.03em" } }, "Achievements"),
+        React.createElement("p", { style: { color: "#64748B", margin: "0 0 32px", fontSize: 14 } },
+            unlockedAchievements.length,
+            " of ",
+            ACHIEVEMENTS.length,
+            " unlocked"),
+        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 } }, ACHIEVEMENTS.map((a) => {
+            const unlocked = a.condition(stats);
+            return (React.createElement("div", { key: a.id, style: { ...styles.card, opacity: unlocked ? 1 : 0.4, borderColor: unlocked ? "#E8B93140" : "#1E293B", padding: 20 } },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14 } },
+                    React.createElement("div", { style: { width: 52, height: 52, borderRadius: 14, background: unlocked ? "#E8B93120" : "#1E293B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 } }, a.icon),
+                    React.createElement("div", null,
+                        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: unlocked ? "#E2E8F0" : "#475569" } }, a.name),
+                        React.createElement("div", { style: { fontSize: 12, color: unlocked ? "#E8B931" : "#475569" } }, a.desc),
+                        unlocked && React.createElement("div", { style: { fontSize: 10, color: "#10B981", marginTop: 2 } }, "\u2713 Unlocked")))));
+        })),
+        React.createElement("div", { style: { ...styles.card, marginTop: 24 } },
+            React.createElement("h3", { style: { margin: "0 0 16px", fontSize: 16, fontWeight: 700 } }, "Level Progression"),
+            React.createElement("div", { style: { display: "flex", gap: 12 } }, LEVELS.map((l, i) => {
+                const active = l.name === level.name;
+                const passed = xp > l.max;
+                return (React.createElement("div", { key: i, style: { flex: 1, textAlign: "center", padding: 12, borderRadius: 10, background: active ? "#E8B93115" : "transparent", border: `1px solid ${active ? "#E8B931" : passed ? "#10B98140" : "#1E293B"}` } },
+                    React.createElement("div", { style: { fontSize: 24, marginBottom: 4 } }, l.badge),
+                    React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: active ? "#E8B931" : passed ? "#10B981" : "#475569" } }, l.name),
+                    React.createElement("div", { style: { fontSize: 10, color: "#475569" } },
+                        l.min,
+                        "+ XP")));
+            })))));
+    // ─── Main Render ──────────────────────────────────────────
+    return (React.createElement("div", { style: styles.app },
+        React.createElement("link", { href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap", rel: "stylesheet" }),
+        renderSidebar(),
+        React.createElement("div", { style: styles.main },
+            page === "dashboard" && renderDashboard(),
+            page === "quiz" && renderQuiz(),
+            page === "topics" && renderTopics(),
+            page === "progress" && renderProgress(),
+            page === "achievements" && renderAchievements())));
+}
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(CDMPCoachingPlatform));
+  </script>
+</body>
+</html>
